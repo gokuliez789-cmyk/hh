@@ -1,0 +1,45 @@
+Lexer.l
+%{
+#include "y.tab.h"
+%}
+%%
+[0-9]+                 { return ID; }        // numbers
+[a-zA-Z][a-zA-Z0-9]*  { return ID; }        // variables
+"+"                    { return '+'; }
+"*"                    { return '*'; }
+"("                    { return '('; }
+")"                    { return ')'; }
+[ \t]                  ;   // ignore spaces
+\n                     return 0;
+. { printf("Invalid character: %s\n", yytext); }
+%%
+int yywrap() {
+    return 1;
+}
+Parser..y
+%{
+#include <stdio.h>
+void yyerror(const char *s);
+int yylex();
+%}
+%token I
+%%
+E : E '+' T
+  | T
+  ;
+T : T '*' F
+  | F
+  ;
+F : '(' E ')'
+  | ID
+  ;
+%%
+void yyerror(const char *s) {
+    printf("Invalid String\n");
+}
+int main() {
+    printf("Enter string:\n");
+    if (yyparse() == 0)
+        printf("Valid String\n");
+    return 0;
+}

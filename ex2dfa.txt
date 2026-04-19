@@ -1,0 +1,139 @@
+#include <stdio.h>
+#define MAX 10
+#define ALPHA 2   // a, b
+int n;
+int trans[MAX][ALPHA];
+int final[MAX];
+int distinguish[MAX][MAX];
+// Convert state char → index
+int getIndex(char c) {
+    return c - 'A';
+}
+
+// Initialize table
+void initialize() {
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            if (final[i] != final[j])
+                distinguish[i][j] = 1;
+            else
+                distinguish[i][j] = 0;
+        }
+    }
+}
+
+// Minimization logic
+void minimizeDFA() {
+    int changed;
+    do {
+        changed = 0;
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < i; j++) {
+                if (!distinguish[i][j]) {
+                    for (int k = 0; k < ALPHA; k++) {
+                        int p = trans[i][k];
+                        int q = trans[j][k];
+                        if (distinguish[p][q]) {
+                            distinguish[i][j] = distinguish[j][i] = 1;
+                            changed = 1;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    } while (changed);
+}
+// Print minimized DFA only
+void printMinimized() {
+    int group[MAX], groupCount = 0;
+    int rep[MAX];
+    for (int i = 0; i < n; i++)
+        group[i] = -1;
+    // Create groups
+    for (int i = 0; i < n; i++) {
+        if (group[i] == -1) {
+            group[i] = groupCount;
+            rep[groupCount] = i;
+            for (int j = i + 1; j < n; j++) {
+                if (!distinguish[i][j])
+                    group[j] = groupCount;
+            }
+            groupCount++;
+        }
+    }
+    printf("\nMinimized DFA\n");
+    printf("State\t a\t b\t Final\n");
+    for (int g = 0; g < groupCount; g++) {
+        int i = rep[g];
+        // Check finaL
+        int isFinal = 0;
+        for (int j = 0; j < n; j++) {
+            if (group[j] == g && final[j]) {
+                isFinal = 1;
+                break;
+            }
+        }
+        printf("%c\t %c\t %c\t %s\n",
+               'A' + i,
+               'A' + rep[group[trans[i][0]]],
+               'A' + rep[group[trans[i][1]]],
+               isFinal ? "Yes" : "No");
+    }
+}
+
+// MAIN
+int main() {
+    printf("Enter number of states: ");
+    scanf("%d", &n);
+    printf("\nEnter DFA Transition Table:\n");
+    printf("State   a   b\n");
+    char state, a, b;
+    for (int i = 0; i < n; i++) {
+        printf("Enter row %d (format: A B C): ", i + 1);
+        scanf(" %c %c %c", &state, &a, &b);
+        int s = getIndex(state);
+        trans[s][0] = getIndex(a);
+        trans[s][1] = getIndex(b);
+    }
+    printf("\nEnter Final States (1 = Yes, 0 = No)\n");
+    for (int i = 0; i < n; i++) {
+        printf("%c: ", 'A' + i);
+        scanf("%d", &final[i]);
+    }
+    initialize();
+    minimizeDFA();
+    printMinimized();
+    return 0;
+}
+
+
+
+output:
+
+Enter number of states: 5
+
+Enter DFA Transition Table:
+State   a   b
+Enter row 1 (format: A B C): A B C
+Enter row 2 (format: A B C): B B D
+Enter row 3 (format: A B C): C B C
+Enter row 4 (format: A B C): D B E
+Enter row 5 (format: A B C): E B C
+
+Enter Final States (1 = Yes, 0 = No)
+A: 0
+B: 0
+C: 0
+D: 0
+E: 1
+
+Minimized DFA
+State    a       b       Final
+A        B       A       No
+B        B       D       No
+D        B       E       No
+E        B       A       Yes
+
+Process returned 0 (0x0)   execution time : 50.514 s
+Press any key to continue.

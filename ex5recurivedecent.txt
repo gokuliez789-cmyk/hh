@@ -1,0 +1,180 @@
+#include <stdio.h>
+#include <ctype.h>
+#include <string.h>
+
+char input[100];
+int i = 0;
+int error = 0;
+
+/* Stack */
+char stack[100];
+int top = -1;
+
+/* Stack operations */
+void push(char c) {
+    stack[++top] = c;
+}
+
+void pop() {
+    if (top >= 0)
+        top--;
+}
+
+/* Print stack */
+void printStack() {
+    for (int j = 0; j <= top; j++)
+        printf("%c", stack[j]);
+}
+
+/* Print remaining input */
+void printInput() {
+    for (int j = i; input[j] != '\0'; j++)
+        printf("%c", input[j]);
+}
+
+/* Grammar functions */
+void E();
+void Eprime();
+void T();
+void Tprime();
+void F();
+
+/* E → T E' */
+void E() {
+    push('E');
+    printf("\n");
+    printStack(); printf("\t");
+    printInput(); printf("\tE -> T E'");
+
+    T();
+    Eprime();
+    pop();
+}
+
+/* E' → + T E' | ε */
+void Eprime() {
+    push('\''); // using ' for E'
+    if (input[i] == '+') {
+        printf("\n");
+        printStack(); printf("\t");
+        printInput(); printf("\tE' -> + T E'");
+
+        i++;
+        T();
+        Eprime();
+    } else {
+        printf("\n");
+        printStack(); printf("\t");
+        printInput(); printf("\tE' -> $");
+    }
+    pop();
+}
+
+/* T → F T' */
+void T() {
+    push('T');
+    printf("\n");
+    printStack(); printf("\t");
+    printInput(); printf("\tT -> F T'");
+
+    F();
+    Tprime();
+    pop();
+}
+
+/* T' → * F T' | ε */
+void Tprime() {
+    push('#'); // using # for T'
+    if (input[i] == '*') {
+        printf("\n");
+        printStack(); printf("\t");
+        printInput(); printf("\tT' -> * F T'");
+
+        i++;
+        F();
+        Tprime();
+    } else {
+        printf("\n");
+        printStack(); printf("\t");
+        printInput(); printf("\tT' -> $");
+    }
+    pop();
+}
+
+/* F → (E) | i */
+void F() {
+    push('F');
+    if (input[i] == '(') {
+        printf("\n");
+        printStack(); printf("\t");
+        printInput(); printf("\tF -> ( E )");
+
+        i++;
+        E();
+
+        if (input[i] == ')')
+            i++;
+        else {
+            error = 1;
+            printf("\nError: missing )");
+        }
+    }
+    else if (input[i] == 'i') {
+        printf("\n");
+        printStack(); printf("\t");
+        printInput(); printf("\tF -> i");
+
+        i++;
+    }
+    else {
+        error = 1;
+        printf("\nError: invalid symbol %c", input[i]);
+    }
+    pop();
+}
+/* MAIN */
+int main() {
+    printf("Enter the string: ");
+    scanf("%s", input);
+
+    /* Initialize stack with $ */
+    push('$');
+
+    printf("\nStack\tInput\tAction");
+    printf("\n--------------------------------------");
+
+    E();
+
+    printf("\n--------------------------------------\n");
+
+    if (input[i] == '\0' && error == 0)
+        printf("String is successfully parsed\n");
+    else
+        printf("String is invalid\n");
+
+    return 0;
+}
+
+
+output:
+
+Enter the string: i+i*i
+
+Stack   Input   Action
+--------------------------------------
+$E      i+i*i   E -> T E'
+$ET     i+i*i   T -> F T'
+$ETF    i+i*i   F -> i
+$ET#    +i*i    T' -> $
+$E'     +i*i    E' -> + T E'
+$E'T    i*i     T -> F T'
+$E'TF   i*i     F -> i
+$E'T#   *i      T' -> * F T'
+$E'T#F  i       F -> i
+$E'T##          T' -> $
+$E''            E' -> $
+--------------------------------------
+String is successfully parsed
+
+Process returned 0 (0x0)   execution time : 10.526 s
+Press any key to continue.

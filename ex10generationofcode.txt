@@ -1,0 +1,74 @@
+#include <stdio.h>
+#include <string.h>
+#include <ctype.h>
+void generateAssembly(char op, char arg1[], char arg2[], char result[]) {
+    printf("\n// Computing %s = %s %c %s\n", result, arg1, op, arg2);
+    printf("MOV R0, %s\n", arg1);
+    switch (op) {
+        case '+':
+            printf("ADD R0, %s\n", arg2);
+            break;
+        case '-':
+            printf("SUB R0, %s\n", arg2);
+            break;
+        case '*':
+            printf("MUL R0, %s\n", arg2);
+            break;
+        case '/':
+            printf("DIV R0, %s\n", arg2);
+            break;
+        default:
+            printf("UNKNOWN OP\n");
+    }
+printf("MOV %s, R0\n", result);
+}
+int main() {
+    int n, i;
+    char op[2], arg1[10], arg2[10], result[10];
+    printf("--- Code Generation Phase ---\n");
+    printf("Enter number of intermediate instructions: ");
+    scanf("%d", &n);
+    for (i = 0; i < n; i++) {
+        printf("\nEnter TAC instruction %d (Format: Result Arg1 Op Arg2):\n", i + 1);
+        // Example input: t1 a + b
+        scanf("%s %s %s %s", result, arg1, op, arg2);
+        generateAssembly(op[0], arg1, arg2, result);
+    }
+    printf("\n--- Generation Complete ---\n");
+    return 0;
+}
+
+
+output:
+
+--- Code Generation Phase ---
+Enter number of intermediate instructions: 3
+
+Enter TAC instruction 1 (Format: Result Arg1 Op Arg2):
+t1 a + b
+
+// Computing t1 = a + b
+MOV R0, a
+ADD R0, b
+MOV t1, R0
+
+Enter TAC instruction 2 (Format: Result Arg1 Op Arg2):
+t2 c * d
+
+// Computing t2 = c * d
+MOV R0, c
+MUL R0, d
+MOV t2, R0
+
+Enter TAC instruction 3 (Format: Result Arg1 Op Arg2):
+t3 e / f
+
+// Computing t3 = e / f
+MOV R0, e
+DIV R0, f
+MOV t3, R0
+
+--- Generation Complete ---
+
+Process returned 0 (0x0)   execution time : 41.750 s
+Press any key to continue.

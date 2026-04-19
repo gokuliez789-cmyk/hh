@@ -1,0 +1,529 @@
+#include <stdio.h>
+#include <string.h>
+#include <ctype.h>
+
+#define MAX 20
+
+char prod[MAX][20];
+int n;
+
+char first[26][MAX], follow[26][MAX];
+int computedFirst[26], computedFollow[26], printed[26];
+
+char items[MAX][MAX][20];
+int states = 0;
+
+int transitions[MAX][128];
+char action[MAX][128][10];
+
+// ---------- Utility ----------
+int isTerminal(char c) {
+    return !(c >= 'A' && c <= 'Z');
+}
+
+void addToSet(char *set, char val) {
+    for (int i = 0; set[i]; i++)
+        if (set[i] == val) return;
+
+    int len = strlen(set);
+    set[len] = val;
+    set[len + 1] = '\0';
+}
+
+// ---------- FIRST ----------
+void computeFirst(char c) {
+    if (computedFirst[c - 'A']) return;
+
+    computedFirst[c - 'A'] = 1;
+
+    for (int i = 0; i < n; i++) {
+        if (prod[i][0] == c) {
+            char next = prod[i][3];
+
+            if (isTerminal(next))
+                addToSet(first[c - 'A'], next);
+            else {
+                computeFirst(next);
+                for (int j = 0; first[next - 'A'][j]; j++)
+                    addToSet(first[c - 'A'], first[next - 'A'][j]);
+            }
+        }
+    }
+}
+
+// ---------- FOLLOW ----------
+void computeFollow(char c) {
+    if (computedFollow[c - 'A']) return;
+
+    computedFollow[c - 'A'] = 1;
+
+    if (prod[0][0] == c)
+        addToSet(follow[c - 'A'], '$');
+
+    for (int i = 0; i < n; i++) {
+        for (int j = 3; prod[i][j]; j++) {
+            if (prod[i][j] == c) {
+                if (prod[i][j + 1]) {
+                    char next = prod[i][j + 1];
+
+                    if (isTerminal(next))
+                        addToSet(follow[c - 'A'], next);
+                    else {
+                        computeFirst(next);
+                        for (int k = 0; first[next - 'A'][k]; k++)
+                            addToSet(follow[c - 'A'], first[next - 'A'][k]);
+                    }
+                } else if (prod[i][0] != c) {
+                    computeFollow(prod[i][0]);
+                    for (int k = 0; follow[prod[i][0] - 'A'][k]; k++)
+                        addToSet(follow[c - 'A'], follow[prod[i][0] - 'A'][k]);
+                }
+            }
+        }
+    }
+}
+
+// ---------- PRINT FIRST & FOLLOW ----------
+void printFirstFollow() {
+    printf("\nFIRST SETS:\n");
+
+    memset(printed, 0, sizeof(printed));
+
+    for (int i = 0; i < n; i++) {
+        char A = prod[i][0];
+
+        if (!printed[A - 'A']) {
+            printed[A - 'A'] = 1;
+
+            printf("FIRST(%c) = { ", A);
+            for (int j = 0; first[A - 'A'][j]; j++)
+                printf("%c ", first[A - 'A'][j]);
+            printf("}\n");
+        }
+    }
+
+    printf("\nFOLLOW SETS:\n");
+
+    memset(printed, 0, sizeof(printed));
+
+    for (int i = 0; i < n; i++) {
+        char A = prod[i][0];
+
+        if (!printed[A - 'A']) {
+            printed[A - 'A'] = 1;
+
+            printf("FOLLOW(%c) = { ");
+            for (int j = 0; follow[A - 'A'][j]; j++)
+                printf("%c ", follow[A - 'A'][j]);
+            printf("}\n");
+        }
+    }
+}
+
+// ---------- LR(0) ----------
+void addItem(int state, char item[]) {
+    for (int i = 0; items[state][i][0]; i++)
+        if (strcmp(items[state][i], item) == 0) return;
+
+    int i = 0;
+    while (items[state][i][0]) i++;
+
+    strcpy(items[state][i], item);
+}
+
+void closure(int state) {
+    for (int i = 0; items[state][i][0]; i++) {
+        char *dot = strchr(items[state][i], '.');
+
+        if (dot && isupper(*(dot + 1))) {
+            char B = *(dot + 1);
+
+            for (int j = 0; j < n; j++) {
+                if (prod[j][0] == B) {
+                    char temp[20];
+                    sprintf(temp, "%c->.%s", B, prod[j] + 3);
+                    addItem(state, temp);
+                }
+            }
+        }
+    }
+}
+
+void moveDot(char *src, char *dest) {
+    strcpy(dest, src);
+
+    char *dot = strchr(dest, '.');
+
+    if (dot && *(dot + 1)) {
+        char t = *(dot + 1);
+        *(dot + 1) = '.';
+        *dot = t;
+    }
+}
+
+int sameState(int s1, int s2) {
+    int i = 0;
+
+    while (items[s1][i][0] && items[s2][i][0]) {
+        if (strcmp(items[s1][i], items[s2][i])) return 0;
+        i++;
+    }
+
+    return items[s1][i][0] == items[s2][i][0];
+}
+
+int findState(int s) {
+    for (int i = 0; i < states; i++)
+        if (sameState(i, s)) return i;
+
+    return -1;
+}
+
+// ---------- DFA ----------
+void buildDFA() {
+    int i = 0;
+
+    while (i < states) {
+        for (int j = 0; items[i][j][0]; j++) {
+            char *dot = strchr(items[i][j], '.');
+
+            if (dot && *(dot + 1)) {
+                char symbol = *(dot + 1);
+
+                int newState = states;
+                memset(items[newState], 0, sizeof(items[newState]));
+
+                for (int k = 0; items[i][k][0]; k++) {
+                    char *d = strchr(items[i][k], '.');
+
+                    if (d && *(d + 1) == symbol) {
+                        char temp[20];
+                        moveDot(items[i][k], temp);
+                        addItem(newState, temp);
+                    }
+                }
+
+                closure(newState);
+
+                int existing = findState(newState);
+
+                if (existing == -1) {
+                    transitions[i][symbol] = states;
+                    states++;
+                } else {
+                    transitions[i][symbol] = existing;
+                }
+            }
+        }
+        i++;
+    }
+}
+
+// ---------- PRINT ITEM SETS ----------
+void printItemSets() {
+    printf("\nLR(0) ITEM SETS:\n");
+
+    for (int i = 0; i < states; i++) {
+        printf("\nI%d:\n", i);
+        for (int j = 0; items[i][j][0]; j++) {
+            printf("  %s\n", items[i][j]);
+        }
+    }
+}
+
+// ---------- PRINT DFA ----------
+void printDFA() {
+    printf("\nDFA TRANSITIONS:\n");
+
+    for (int i = 0; i < states; i++) {
+        for (int c = 0; c < 128; c++) {
+            if (transitions[i][c]) {
+                printf("I%d -- %c --> I%d\n", i, c, transitions[i][c]);
+            }
+        }
+    }
+}
+
+// ---------- Parsing Table ----------
+void buildParsingTable() {
+    for (int i = 0; i < states; i++) {
+        for (int j = 0; items[i][j][0]; j++) {
+
+            char *dot = strchr(items[i][j], '.');  // FIXED ;
+
+            if (dot && isTerminal(*(dot + 1))) {
+                char a = *(dot + 1);
+                int s = transitions[i][a];
+                sprintf(action[i][(int)a], "s%d", s);
+            }
+
+            if (dot && *(dot + 1) == '\0') {
+                if (items[i][j][0] == 'Z') {
+                    strcpy(action[i]['$'], "acc");
+                } else {
+                    for (int p = 0; p < n; p++) {
+                        char temp[20];
+                        sprintf(temp, "%s.", prod[p]);
+
+                        if (strcmp(temp, items[i][j]) == 0) {
+                            char A = prod[p][0];
+
+                            for (int k = 0; follow[A - 'A'][k]; k++) {
+                                char b = follow[A - 'A'][k];
+                                sprintf(action[i][(int)b], "r%d", p);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ---------- TABLE ----------
+void printFullTable() {
+    char t[] = {'i','+','*','(',')','$'};
+    char nt[] = {'E','T','F'};
+
+    printf("\nLR PARSING TABLE:\n");
+
+    for (int i = 0; i < states; i++) {
+        printf("| %-3d |", i);
+
+        for (int j = 0; j < 6; j++) {
+            char *a = action[i][(int)t[j]];
+            if (strlen(a) == 0)
+                printf("      |");
+            else
+                printf(" %-4s |", a);
+        }
+
+        printf("|");
+
+        for (int j = 0; j < 3; j++) {
+            int val = transitions[i][(int)nt[j]];
+            if (val == 0)
+                printf("      |");
+            else
+                printf(" %-4d |", val);   // FIXED ;
+        }
+
+        printf("\n");
+    }
+}
+
+// ---------- STACK ----------
+void printStack(int stack[], int top) {
+    printf("$");
+    for (int i = 0; i <= top; i++)
+        printf("%d", stack[i]);
+}
+
+// ---------- PARSE ----------
+void parse(char input[]) {
+    int stack[50], top = 0;
+    stack[0] = 0;
+
+    int i = 0, step = 1;
+
+    while (1) {
+        int state = stack[top];
+        char a = input[i];
+
+        char *act = action[state][(int)a];  // FIXED ;
+
+        if (strlen(act) == 0) {
+            printf("\nRejected\n");
+            return;
+        }
+
+        if (act[0] == 's') {
+            stack[++top] = act[1] - '0';
+            i++;
+        }
+        else if (act[0] == 'r') {
+            int p = act[1] - '0';
+            int len = strlen(prod[p]) - 3;
+            top -= len;
+
+            int t = stack[top];
+            stack[++top] = transitions[t][prod[p][0]];
+        }
+        else {
+            printf("\nAccepted\n");
+            return;
+        }
+    }
+}
+
+// ---------- MAIN ----------
+int main() {
+    memset(first,0,sizeof(first));
+    memset(follow,0,sizeof(follow));
+    memset(items,0,sizeof(items));
+    memset(transitions,0,sizeof(transitions));
+    memset(action,0,sizeof(action));
+
+    printf("Enter number of productions: ");
+    scanf("%d",&n);
+
+    printf("Enter productions:\n");
+    for(int i=0;i<n;i++)
+        scanf("%s",prod[i]);
+
+    for(int i=0;i<n;i++) computeFirst(prod[i][0]);
+    for(int i=0;i<n;i++) computeFollow(prod[i][0]);
+
+    printFirstFollow();
+
+    char aug[20];
+    sprintf(aug,"Z->.%c",prod[0][0]);
+    strcpy(items[0][0],aug);
+
+    closure(0);
+    states=1;
+
+    buildDFA();
+    buildParsingTable();
+
+    printItemSets();
+    printDFA();
+    printFullTable();
+
+    char input[50];
+    printf("\nEnter input string (without $): ");
+    scanf("%s",input);
+
+    strcat(input,"$");
+
+    parse(input);
+
+    return 0;
+}
+
+
+output:
+
+Enter number of productions: 6
+Enter productions:
+E->E+T
+E->T
+T->T*F
+T->F
+F->(E)
+F->i
+
+FIRST SETS:
+FIRST(E) = { ( i }
+FIRST(T) = { ( i }
+FIRST(F) = { ( i }
+
+FOLLOW SETS:
+FOLLOW(♦) = { $ + ) }
+FOLLOW(‼) = { $ + ) * }
+FOLLOW(♣) = { $ + ) * }
+
+LR(0) ITEM SETS:
+
+I0:
+  Z->.E
+  E->.E+T
+  E->.T
+  T->.T*F
+  T->.F
+  F->.(E)
+  F->.i
+
+I1:
+  Z->E.
+  E->E.+T
+
+I2:
+  E->T.
+  T->T.*F
+
+I3:
+  T->F.
+
+I4:
+  F->(.E)
+  E->.E+T
+  E->.T
+  T->.T*F
+  T->.F
+  F->.(E)
+  F->.i
+
+I5:
+  F->i.
+
+I6:
+  E->E+.T
+  T->.T*F
+  T->.F
+  F->.(E)
+  F->.i
+
+I7:
+  T->T*.F
+  F->.(E)
+  F->.i
+
+I8:
+  F->(E.)
+  E->E.+T
+
+I9:
+  E->E+T.
+  T->T.*F
+
+I10:
+  T->T*F.
+
+I11:
+  F->(E).
+
+DFA TRANSITIONS:
+I0 -- ( --> I4
+I0 -- E --> I1
+I0 -- F --> I3
+I0 -- T --> I2
+I0 -- i --> I5
+I1 -- + --> I6
+I2 -- * --> I7
+I4 -- ( --> I4
+I4 -- E --> I8
+I4 -- F --> I3
+I4 -- T --> I2
+I4 -- i --> I5
+I6 -- ( --> I4
+I6 -- F --> I3
+I6 -- T --> I9
+I6 -- i --> I5
+I7 -- ( --> I4
+I7 -- F --> I10
+I7 -- i --> I5
+I8 -- ) --> I11
+I8 -- + --> I6
+I9 -- * --> I7
+
+LR PARSING TABLE:
+| 0   | s5   |      |      | s4   |      |      || 1    | 2    | 3    |
+| 1   |      | s6   |      |      |      | acc  ||      |      |      |
+| 2   |      | r1   | s7   |      | r1   | r1   ||      |      |      |
+| 3   |      | r3   | r3   |      | r3   | r3   ||      |      |      |
+| 4   | s5   |      |      | s4   |      |      || 8    | 2    | 3    |
+| 5   |      | r5   | r5   |      | r5   | r5   ||      |      |      |
+| 6   | s5   |      |      | s4   |      |      ||      | 9    | 3    |
+| 7   | s5   |      |      | s4   |      |      ||      |      | 10   |
+| 8   |      | s6   |      |      | s11  |      ||      |      |      |
+| 9   |      | r0   | s7   |      | r0   | r0   ||      |      |      |
+| 10  |      | r2   | r2   |      | r2   | r2   ||      |      |      |
+| 11  |      | r4   | r4   |      | r4   | r4   ||      |      |      |
+
+Enter input string (without $): i+i*i
+
+Accepted
+
+Process returned 0 (0x0)   execution time : 131.529 s
+Press any key to continue.

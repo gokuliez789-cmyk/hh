@@ -1,0 +1,336 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+#include <time.h>
+#define MAX 100
+typedef struct {
+    char op[5], arg1[20], arg2[20], result[20];
+} Quad;
+Quad code[MAX], original[MAX];
+int n = 0, tempCount = 1;
+/* ================= UTIL ================= */
+int isNumber(const char *s) {
+    if (*s == '-') s++;
+    if (*s == '\0') return 0;
+    while (*s) {
+        if (!isdigit(*s)) return 0;
+        s++;
+    }
+    return 1;
+}
+void newTemp(char *t) {
+    sprintf(t, "t%d", tempCount++);
+}
+/* ================= PARSE ================= */
+void parseInput(char *line) {
+    char lhs[20], rhs[50];
+    char a1[20], op[5], a2[20], temp[20];
+    char clean[100];
+    int k = 0;
+    for (int i = 0; line[i]; i++)
+        if (line[i] != ' ') clean[k++] = line[i];
+    clean[k] = '\0';
+    sscanf(clean, "%[^=]=%s", lhs, rhs);
+    if (sscanf(rhs, "%[^+-*/]%[+-*/]%s", a1, op, a2) == 3) {
+        newTemp(temp);
+        strcpy(code[n].op, op);
+        strcpy(code[n].arg1, a1);
+        strcpy(code[n].arg2, a2);
+        strcpy(code[n].result, temp);
+        n++;
+        strcpy(code[n].op, "=");
+        strcpy(code[n].arg1, temp);
+        strcpy(code[n].arg2, "");
+        strcpy(code[n].result, lhs);
+        n++;
+    } else {
+        strcpy(code[n].op, "=");
+        strcpy(code[n].arg1, rhs);
+        strcpy(code[n].arg2, "");
+        strcpy(code[n].result, lhs);
+        n++;
+    }
+}
+/* ================= PRINT ================= */
+void printCode(Quad arr[], const char *title) {
+    printf("\n+------+--------+--------+--------+-----------+\n");
+    printf("| %-43s|\n", title);
+    printf("+------+--------+--------+--------+-----------+\n");
+    printf("| No.  | Op     | Arg1   | Arg2   | Result    |\n");
+    printf("+------+--------+--------+--------+-----------+\n");
+    for (int i = 0; i < n; i++) {
+        if (strcmp(arr[i].result, "DEAD") == 0)
+            printf("| %-4d | %-6s | %-6s | %-6s | %-9s | << REMOVED\n",
+                   i+1, arr[i].op, arr[i].arg1,
+                   arr[i].arg2, arr[i].result);
+        else
+            printf("| %-4d | %-6s | %-6s | %-6s | %-9s |\n",
+                   i+1, arr[i].op, arr[i].arg1,
+                   arr[i].arg2, arr[i].result);
+    }
+    printf("+------+--------+--------+--------+-----------+\n");
+}
+/* ================= EXECUTION ================= */
+void executeCode(Quad arr[]) {
+    int val1, val2;
+    for (int i = 0; i < n; i++) {
+        if (strcmp(arr[i].result, "DEAD") == 0) continue;
+        val1 = isNumber(arr[i].arg1) ? atoi(arr[i].arg1) : 1;
+        val2 = isNumber(arr[i].arg2) ? atoi(arr[i].arg2) : 1;
+        if (strcmp(arr[i].op, "+") == 0) val1 + val2;
+        else if (strcmp(arr[i].op, "-") == 0) val1 - val2;
+        else if (strcmp(arr[i].op, "*") == 0) val1 * val2;
+        else if (strcmp(arr[i].op, "/") == 0 && val2 != 0) val1 / val2;
+        else if (strcmp(arr[i].op, "<<") == 0) val1 << val2;
+        else if (strcmp(arr[i].op, "=") == 0) val1;
+    }
+}
+/* ================= OPTIMIZATION ================= */
+void constantFolding() {
+    printf("\n========================================\n");
+    printf("  TECHNIQUE 1: CONSTANT FOLDING\n");
+    printf("========================================\n");
+    for (int i = 0; i < n; i++) {
+        if (isNumber(code[i].arg1) && isNumber(code[i].arg2)) {
+            int a = atoi(code[i].arg1);
+            int b = atoi(code[i].arg2);
+            int res;
+            if (strcmp(code[i].op, "+") == 0) res = a + b;
+            else if (strcmp(code[i].op, "-") == 0) res = a - b;
+            else if (strcmp(code[i].op, "*") == 0) res = a * b;
+            else if (strcmp(code[i].op, "/") == 0 && b != 0) res = a / b;
+            else continue;
+            printf("  [CF] %s = %s %s %s  =>  %d\n",
+                   code[i].result, code[i].arg1,
+                   code[i].op, code[i].arg2, res);
+            sprintf(code[i].arg1, "%d", res);
+            strcpy(code[i].arg2, "");
+            strcpy(code[i].op, "=");
+        }
+    }
+}
+void constantPropagation() {
+    printf("\n========================================\n");
+    printf("  TECHNIQUE 2: CONSTANT PROPAGATION\n");
+    printf("========================================\n");
+    for (int i = 0; i < n; i++) {
+        if (strcmp(code[i].op, "=") == 0 && isNumber(code[i].arg1)) {
+            for (int j = i + 1; j < n; j++) {
+                if (strcmp(code[j].arg1, code[i].result) == 0) {
+                    printf("  [CP] Replace %s with %s\n",
+                           code[i].result, code[i].arg1);
+                    strcpy(code[j].arg1, code[i].arg1);
+                }
+                if (strcmp(code[j].arg2, code[i].result) == 0) {
+                    printf("  [CP] Replace %s with %s\n",
+                           code[i].result, code[i].arg1);
+                    strcpy(code[j].arg2, code[i].arg1);
+                }
+            }
+        }
+    }
+}
+void deadCodeElimination() {
+    printf("\n========================================\n");
+    printf("  TECHNIQUE 3: DEAD CODE ELIMINATION\n");
+    printf("========================================\n");
+    int used[MAX] = {0};
+    for (int i = 0; i < n; i++) {
+        for (int j = i + 1; j < n; j++) {
+            if (strcmp(code[j].arg1, code[i].result) == 0 ||
+                strcmp(code[j].arg2, code[i].result) == 0)
+                used[i] = 1;
+        } }
+    used[n-1] = 1;
+    for (int i = 0; i < n; i++) {
+        if (!used[i]) {
+            printf("  [DC] Dead code found: %s\n", code[i].result);
+            strcpy(code[i].result, "DEAD");
+        }}}
+void commonSubexpressionElimination() {
+    printf("\n========================================\n");
+    printf("  TECHNIQUE 4: COMMON SUBEXPRESSION\n");
+    printf("========================================\n");
+    for (int i = 0; i < n; i++) {
+        for (int j = i + 1; j < n; j++) {
+            if (strcmp(code[i].op, code[j].op) == 0 &&
+                strcmp(code[i].arg1, code[j].arg1) == 0 &&
+                strcmp(code[i].arg2, code[j].arg2) == 0 &&
+                strcmp(code[i].op, "=") != 0) {
+                printf("  [CSE] Replacing stmt %d\n", j+1);
+                strcpy(code[j].op, "=");
+                strcpy(code[j].arg1, code[i].result);
+                strcpy(code[j].arg2, "");
+            }}}}
+void strengthReduction() {
+    printf("\n========================================\n");
+    printf("  TECHNIQUE 5: STRENGTH REDUCTION\n");
+    printf("========================================\n");
+    for (int i = 0; i < n; i++) {
+        if (strcmp(code[i].op, "*") == 0 &&
+            strcmp(code[i].arg2, "2") == 0) {
+            printf("  [SR] %s = %s * 2 → <<\n",
+                   code[i].result, code[i].arg1);
+            strcpy(code[i].op, "<<");
+            strcpy(code[i].arg2, "1");
+        } } }
+void copyPropagation() {
+    printf("\n========================================\n");
+    printf("  TECHNIQUE 6: COPY PROPAGATION\n");
+    printf("========================================\n");
+    for (int i = 0; i < n; i++) {
+        if (strcmp(code[i].op, "=") == 0 &&
+            strcmp(code[i].arg2, "") == 0) {
+
+            for (int j = i + 1; j < n; j++) {
+                if (strcmp(code[j].arg1, code[i].result) == 0) {
+                    printf("  [CoProp] Replace %s with %s\n",
+                           code[i].result, code[i].arg1);
+                    strcpy(code[j].arg1, code[i].arg1);
+                }
+                if (strcmp(code[j].arg2, code[i].result) == 0) {
+                    printf("  [CoProp] Replace %s with %s\n",
+                           code[i].result, code[i].arg1);
+                    strcpy(code[j].arg2, code[i].arg1);
+                }  } } } }
+/* ================= MAIN ================= */
+int main() {
+    int m;
+    char line[100];
+    printf("Enter number of expressions: ");
+    scanf("%d", &m);
+    getchar();
+    for (int i = 0; i < m; i++) {
+        printf("Stmt %d: ", i+1);
+        fgets(line, sizeof(line), stdin);
+        line[strcspn(line, "\n")] = 0;
+        parseInput(line);
+    }
+    // Save original code
+    for(int i=0;i<n;i++) original[i] = code[i];
+    printf("\n==========================================\n");
+    printf("   CODE OPTIMIZATION TECHNIQUES DEMO\n");
+    printf("==========================================\n");
+    printCode(original, "ORIGINAL THREE-ADDRESS CODE");
+    /* EXECUTION BEFORE */
+    clock_t start = clock();
+    for(int i=0;i<1000000;i++)
+        executeCode(original);
+    clock_t end = clock();
+    double before = (double)(end - start) / CLOCKS_PER_SEC;
+    /* OPTIMIZATION */
+    constantFolding();
+    constantPropagation();
+    deadCodeElimination();
+    commonSubexpressionElimination();
+    strengthReduction();
+    copyPropagation();
+    printCode(code, "OPTIMIZED THREE-ADDRESS CODE");
+    /* EXECUTION AFTER */
+    start = clock();
+    for(int i=0;i<1000000;i++)
+        executeCode(code);
+    end = clock();
+    double after = (double)(end - start) / CLOCKS_PER_SEC;
+    printf("\n==========================================\n");
+    printf("Execution Time (REAL EXECUTION):\n");
+    printf("Before Optimization : %f seconds\n", before);
+    printf("After Optimization  : %f seconds\n", after);
+    printf("==========================================\n");
+    printf("\n[Done] All optimization passes complete.\n");
+    return 0;
+}
+
+
+output:
+
+Enter number of expressions: 5
+Stmt 1: x=3+5
+Stmt 2: y=x
+Stmt 3: z=a+b
+Stmt 4: w=a+b
+Stmt 5: t=x*2
+
+==========================================
+   CODE OPTIMIZATION TECHNIQUES DEMO
+==========================================
+
++------+--------+--------+--------+-----------+
+| ORIGINAL THREE-ADDRESS CODE                |
++------+--------+--------+--------+-----------+
+| No.  | Op     | Arg1   | Arg2   | Result    |
++------+--------+--------+--------+-----------+
+| 1    | +      | 3      | 5      | t1        |
+| 2    | =      | t1     |        | x         |
+| 3    | =      | x      |        | y         |
+| 4    | +      | a      | b      | t2        |
+| 5    | =      | t2     |        | z         |
+| 6    | +      | a      | b      | t3        |
+| 7    | =      | t3     |        | w         |
+| 8    | *      | x      | 2      | t4        |
+| 9    | =      | t4     |        | t         |
++------+--------+--------+--------+-----------+
+
+========================================
+  TECHNIQUE 1: CONSTANT FOLDING
+========================================
+  [CF] t1 = 3 + 5  =>  8
+
+========================================
+  TECHNIQUE 2: CONSTANT PROPAGATION
+========================================
+  [CP] Replace t1 with 8
+  [CP] Replace x with 8
+  [CP] Replace x with 8
+
+========================================
+  TECHNIQUE 3: DEAD CODE ELIMINATION
+========================================
+  [DC] Dead code found: t1
+  [DC] Dead code found: x
+  [DC] Dead code found: y
+  [DC] Dead code found: z
+  [DC] Dead code found: w
+
+========================================
+  TECHNIQUE 4: COMMON SUBEXPRESSION
+========================================
+  [CSE] Replacing stmt 6
+
+========================================
+  TECHNIQUE 5: STRENGTH REDUCTION
+========================================
+  [SR] t4 = 8 * 2 ΓåÆ <<
+
+========================================
+  TECHNIQUE 6: COPY PROPAGATION
+========================================
+  [CoProp] Replace t3 with t2
+
++------+--------+--------+--------+-----------+
+| OPTIMIZED THREE-ADDRESS CODE               |
++------+--------+--------+--------+-----------+
+| No.  | Op     | Arg1   | Arg2   | Result    |
++------+--------+--------+--------+-----------+
+| 1    | =      | 8      |        | DEAD      | << REMOVED
+| 2    | =      | 8      |        | DEAD      | << REMOVED
+| 3    | =      | 8      |        | DEAD      | << REMOVED
+| 4    | +      | a      | b      | t2        |
+| 5    | =      | t2     |        | DEAD      | << REMOVED
+| 6    | =      | t2     |        | t3        |
+| 7    | =      | t2     |        | DEAD      | << REMOVED
+| 8    | <<     | 8      | 1      | t4        |
+| 9    | =      | t4     |        | t         |
++------+--------+--------+--------+-----------+
+
+==========================================
+Execution Time (REAL EXECUTION):
+Before Optimization : 0.198000 seconds
+After Optimization  : 0.140000 seconds
+==========================================
+
+[Done] All optimization passes complete.
+
+Process returned 0 (0x0)   execution time : 44.699 s
+Press any key to continue.

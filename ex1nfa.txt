@@ -1,0 +1,127 @@
+#include <stdio.h>
+#include <string.h>
+int main()
+{
+    char reg[20];
+    int q[20][3], i = 0, j = 1, len, a, b;
+    int final_state;
+    for (a = 0; a < 20; a++)
+        for (b = 0; b < 3; b++)
+            q[a][b] = 0;
+    printf("Enter the RE:");
+    scanf("%s", reg);
+    printf("Given regular expression: %s\n", reg);
+    len = strlen(reg);
+    while (i < len)    {
+        if (reg[i] == 'a' && reg[i + 1] != '|' && reg[i + 1] != '*')
+        {
+            q[j][0] = j + 1;
+            j++; }
+        if (reg[i] == 'b' && reg[i + 1] != '|' && reg[i + 1] != '*')
+        {
+            q[j][1] = j + 1;
+            j++;   }
+        if (reg[i] == 'e' && reg[i + 1] != '|' && reg[i + 1] != '*')
+        {
+            q[j][2] = j + 1;
+            j++;   }
+        if (reg[i] == 'a' && reg[i + 1] == '|' && reg[i + 2] == 'b')
+        {
+            q[j][2] = ((j + 1) * 10) + (j + 3); j++;
+            q[j][0] = j + 1; j++;
+            q[j][2] = j + 3; j++;
+            q[j][1] = j + 1; j++;
+            q[j][2] = j + 1; j++;
+            i += 2;
+        }
+        if (reg[i] == 'b' && reg[i + 1] == '|' && reg[i + 2] == 'a')
+        {
+            q[j][2] = ((j + 1) * 10) + (j + 3); j++;
+            q[j][1] = j + 1; j++;
+            q[j][2] = j + 3; j++;
+            q[j][0] = j + 1; j++;
+            q[j][2] = j + 1; j++;
+            i += 2;
+        }
+        if (reg[i] == 'a' && reg[i + 1] == '*')
+        {
+            q[j][2] = ((j + 1) * 10) + (j + 3); j++;
+            q[j][0] = j + 1; j++;
+            q[j][2] = ((j + 1) * 10) + (j - 1); j++;
+        }
+        if (reg[i] == 'b' && reg[i + 1] == '*')
+        {
+            q[j][2] = ((j + 1) * 10) + (j + 3); j++;
+            q[j][1] = j + 1; j++;
+            q[j][2] = ((j + 1) * 10) + (j - 1); j++;
+        }
+        if (reg[i] == ')' && reg[i + 1] == '*')
+        {
+            q[0][2] = ((j + 1) * 10) + 1;
+            q[j][2] = ((j + 1) * 10) + 1;
+            j++;
+        }
+        i++;
+    }
+    final_state = j;
+    printf("\nTransition Table (State-wise)\n");
+    printf("----------------------------------------------------------\n");
+    printf("State\t|\t a \t|\t b \t|\t ep\n");
+    printf("----------------------------------------------------------\n");
+    for (i = 0; i <= final_state; i++)
+    {
+        printf("q[%d]\t|", i);
+        if (q[i][0] != 0)
+            printf("\tq[%d]\t|", q[i][0]);
+        else
+            printf("\t-\t|");
+        if (q[i][1] != 0)
+            printf("\tq[%d]\t|", q[i][1]);
+        else
+            printf("\t-\t|");
+        if (q[i][2] != 0)
+        {
+            if (q[i][2] < 10)
+                printf("\tq[%d]", q[i][2]);
+            else
+                printf("\tq[%d],q[%d]", q[i][2] / 10, q[i][2] % 10);
+        }
+        else
+            printf("\t-");
+        if (i == final_state)
+            printf("  (Final State)");
+
+        printf("\n");
+    }
+    printf("----------------------------------------------------------\n");
+    printf("Final State: q[%d]\n", final_state);
+    return 0;
+}
+
+
+
+
+output:
+
+Enter the RE:(a|b)*a
+Given regular expression: (a|b)*a
+
+Transition Table (State-wise)
+----------------------------------------------------------
+State   |        a      |        b      |        ep
+----------------------------------------------------------
+q[0]    |       -       |       -       |       q[7],q[1]
+q[1]    |       -       |       -       |       q[2],q[4]
+q[2]    |       q[3]    |       -       |       -
+q[3]    |       -       |       -       |       q[6]
+q[4]    |       -       |       q[5]    |       -
+q[5]    |       -       |       -       |       q[6]
+q[6]    |       -       |       -       |       q[7],q[1]
+q[7]    |       q[8]    |       -       |       -
+q[8]    |       -       |       -       |       -  (Final State)
+----------------------------------------------------------
+Final State: q[8]
+
+Process returned 0 (0x0)   execution time : 28.669 s
+Press any key to continue.
+

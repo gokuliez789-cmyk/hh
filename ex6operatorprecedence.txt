@@ -1,0 +1,235 @@
+#include <stdio.h>
+#include <string.h>
+#include <ctype.h>
+#define MAX 20
+char g[MAX][MAX], nt[MAX], t[MAX];
+char f[26][MAX], l[26][MAX];
+int ntc=0, tc=0;
+/* ---------- UTIL ---------- */
+int has(char a[], char c){ for(int i=0;a[i];i++) if(a[i]==c) return 1; return 0; }
+void add(char a[], char c){ if(!has(a,c)){ int n=strlen(a); a[n]=c; a[n+1]='\0'; } }
+void addT(char c){ if(!isupper(c)&&c!='-'&&c!='>'&&!has(t,c)) t[tc++]=c; }
+
+/* ---------- FIRSTVT ---------- */
+
+void firstVT(){
+    int ch=1;
+    while(ch){
+        ch=0;
+        for(int i=0;i<ntc;i++){
+            char A=g[i][0];
+            for(int j=3;g[i][j];j++){
+                char X=g[i][j];
+                if(!isupper(X)){ if(!has(f[A-'A'],X)){ add(f[A-'A'],X); ch=1;} break;}
+                for(int k=0;f[X-'A'][k];k++)
+                    if(!has(f[A-'A'],f[X-'A'][k])){ add(f[A-'A'],f[X-'A'][k]); ch=1;}
+                if(isupper(X)&&g[i][j+1]&&!isupper(g[i][j+1]))
+                    add(f[A-'A'],g[i][j+1]);
+            }
+        }
+    }
+}
+
+/* ---------- LASTVT ---------- */
+void lastVT(){
+    int ch=1;
+    while(ch){
+        ch=0;
+        for(int i=0;i<ntc;i++){
+            char A=g[i][0]; int len=strlen(g[i]);
+            for(int j=len-1;j>=3;j--){
+                char X=g[i][j];
+                if(!isupper(X)){ if(!has(l[A-'A'],X)){ add(l[A-'A'],X); ch=1;} break;}
+                for(int k=0;l[X-'A'][k];k++)
+                    if(!has(l[A-'A'],l[X-'A'][k])){ add(l[A-'A'],l[X-'A'][k]); ch=1;}
+                if(isupper(X)&&j-1>=3&&!isupper(g[i][j-1]))
+                    add(l[A-'A'],g[i][j-1]);
+            }
+        }
+    }
+}
+int main(){
+    int n; printf("Enter number of productions: "); scanf("%d",&n);
+    printf("Enter productions:\n");
+    for(int i=0;i<n;i++){
+        scanf("%s",g[i]); nt[ntc++]=g[i][0];
+        for(int j=3;g[i][j];j++) addT(g[i][j]);
+    }
+    t[tc++]='$';
+    firstVT(); lastVT();
+    printf("\nFIRSTVT:\n");
+    for(int i=0;i<ntc;i++) printf("%c : %s\n",nt[i],f[nt[i]-'A']);
+    printf("\nLASTVT:\n");
+    for(int i=0;i<ntc;i++) printf("%c : %s\n",nt[i],l[nt[i]-'A']);
+    char tab[MAX][MAX];
+    for(int i=0;i<tc;i++) for(int j=0;j<tc;j++) tab[i][j] = ' ';
+    for(int i=0;i<n;i++){
+        for(int j=3;g[i][j+1];j++){
+            char a=g[i][j], b=g[i][j+1];
+            int x,y;
+            for(x=0;x<tc;x++) if(t[x]==a) break;
+            for(y=0;y<tc;y++) if(t[y]==b) break;
+            if(!isupper(a)&&!isupper(b)) tab[x][y]='=';
+            if(!isupper(a)&&isupper(b))
+                for(int k=0;f[b-'A'][k];k++)
+                    for(y=0;y<tc;y++) if(t[y]==f[b-'A'][k]) tab[x][y]='<';
+            if(isupper(a)&&!isupper(b))
+                for(int k=0;l[a-'A'][k];k++)
+                    for(x=0;x<tc;x++) if(t[x]==l[a-'A'][k]) tab[x][y]='>';
+        }
+    }
+    for(int i=0;f[nt[0]-'A'][i];i++)
+        for(int j=0;j<tc;j++)
+            if(t[j]==f[nt[0]-'A'][i]) tab[tc-1][j]='<';
+    for(int i=0;l[nt[0]-'A'][i];i++)
+        for(int j=0;j<tc;j++)
+            if(t[j]==l[nt[0]-'A'][i]) tab[j][tc-1]='>';
+    tab[tc-1][tc-1]='A';
+    printf("\nOPERATOR PRECEDENCE TABLE:\n\t");
+    for(int i=0;i<tc;i++) printf("%c\t",t[i]); printf("\n");
+    for(int i=0;i<tc;i++){
+        printf("%c\t",t[i]);
+        for(int j=0;j<tc;j++) printf("%c\t",tab[i][j]);
+        printf("\n");
+    }
+
+    /* ---------- PARSING ---------- */
+    char st[50], in[50]; int top=-1, p=0;
+    st[++top]='$';
+    printf("\nEnter the input string: ");
+    scanf("%s",in);
+    printf("\nSTACK\t\tINPUT STRING\t\tACTION\n");
+    while(1){
+        printf("\n"); for(int i=0;i<=top;i++) printf("%c",st[i]);
+        printf("\t\t%s\t\t",in+p);
+        char a=st[top], b=in[p]; int x,y;
+        for(x=0;x<tc;x++) if(t[x]==a) break;
+        for(y=0;y<tc;y++) if(t[y]==b) break;
+        if(a=='$'&&b=='$'){ printf("\tString is accepted"); break; }
+        if(tab[x][y]=='<'||tab[x][y]=='='){
+            printf("\tShift %c",b); st[++top]=b; p++;
+        }
+        else if(tab[x][y]=='>'){
+            printf("\tReduce"); top--;
+        }
+        else{ printf("\tError"); break; }
+    }
+}
+
+
+output:
+
+Enter number of productions: 3
+Enter productions:
+E->E+T
+E->T
+T->a
+
+FIRSTVT:
+E : +a
+E : +a
+T : a
+
+LASTVT:
+E : +a
+E : +a
+T : a
+
+OPERATOR PRECEDENCE TABLE:
+        +       a       $
++       >       <       >
+a       >               >
+$       <       <       A
+
+Enter the input string: a+a$
+
+STACK           INPUT STRING            ACTION
+
+$               a+a$                    Shift a
+$a              +a$                     Reduce
+$               +a$                     Shift +
+$+              a$                      Shift a
+$+a             $                       Reduce
+$+              $                       Reduce
+$               $                       String is accepted
+Process returned 0 (0x0)   execution time : 47.303 s
+Press any key to continue.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

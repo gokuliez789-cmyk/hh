@@ -1,0 +1,107 @@
+%{
+#include <stdio.h>
+%}
+%%
+"+"|"-"|"*"|"/"|"%"     { printf("Arithmetic Operator: %s\n", yytext); }
+"=="|"!="|"<="|">="|"<"|">" { printf("Relational Operator: %s\n", yytext); }
+"="                     { printf("Assignment Operator: %s\n", yytext); }
+"&&"|"||"|"!"           { printf("Logical Operator: %s\n", yytext); }
+.|\n                    { /* Ignore non-operators */ }
+%%
+int main() {
+    printf("Enter expressions to find operators:\n");
+    yylex();
+    return 0;
+}
+int yywrap() { return 1; }
+
+
+program:
+
+%{
+#include <stdio.h>
+#include <string.h>
+#define MAX 100
+char identifiers[MAX][50];
+char keywords[MAX][50];
+char numbers[MAX][50];
+char operators[MAX][50];
+char symbols[MAX][50];
+int id_count=0, key_count=0, num_count=0, op_count=0, sym_count=0;
+int exists(char arr[][50], int count, char *val) {
+    for(int i=0;i<count;i++) {
+        if(strcmp(arr[i],val)==0)
+            return 1;
+    }
+    return 0;
+}
+void addUnique(char arr[][50], int *count, char *val) {
+    if(!exists(arr,*count,val)) {
+        strcpy(arr[*count],val);
+        (*count)++;
+    }
+}
+%}
+digit      [0-9]
+letter     [a-zA-Z_]
+id         {letter}({letter}|{digit})*
+number     {digit}+(\.{digit}+)?
+%%
+END { return 0; }
+int|float|char|double|if|else|while|for|return {
+    addUnique(keywords,&key_count,yytext);
+}
+{id} {
+    addUnique(identifiers,&id_count,yytext);
+}
+{number} {
+    addUnique(numbers,&num_count,yytext);
+}
+"++"|"--"|"=="|"!="|"<="|">="|"+"|"-"|"*"|"/"|"="|"<"|">" {
+    addUnique(operators,&op_count,yytext);
+}
+";"|","|"("|")"|"{"|"}" {
+    addUnique(symbols,&sym_count,yytext);
+}
+\"[^\"]*\" ;
+[ \t\n]+ ;
+. ;
+%%
+int main() {
+    printf("Enter C program (type END to stop):\n");
+    yylex();
+    int i;
+    printf("\n------ GROUPED TOKEN TABLE ------\n");
+    printf("\nIdentifier - ");
+    for(i=0;i<id_count;i++)
+        printf("%s%s",identifiers[i], (i<id_count-1)?", ":"");
+    printf("\nKeyword - ");
+    for(i=0;i<key_count;i++)
+        printf("%s%s",keywords[i], (i<key_count-1)?", ":"");
+    printf("\nNumber - ");
+    for(i=0;i<num_count;i++)
+        printf("%s%s",numbers[i], (i<num_count-1)?", ":"");
+
+    printf("\nOperator - ");
+    for(i=0;i<op_count;i++)
+        printf("%s%s",operators[i], (i<op_count-1)?", ":"");
+
+    printf("\nSymbol - ");
+    for(i=0;i<sym_count;i++)
+        printf("%s%s",symbols[i], (i<sym_count-1)?", ":"");
+
+    printf("\n");
+
+    / COUNT OUTPUT */
+    printf("\n------ COUNT ------\n");
+    printf("Identifiers : %d\n", id_count);
+    printf("Keywords    : %d\n", key_count);
+    printf("Numbers     : %d\n", num_count);
+    printf("Operators   : %d\n", op_count);
+    printf("Symbols     : %d\n", sym_count);
+
+    return 0;
+}
+int yywrap() {
+    return 1;
+}

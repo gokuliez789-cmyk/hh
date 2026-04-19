@@ -1,0 +1,178 @@
+#include <stdio.h>
+#include <string.h>
+#include <ctype.h>
+#define MAX 100
+struct symbol {
+    char name[50];
+    char objType[20];
+    char dataType[20];
+    int size;
+    int address;
+    char scope[20];
+};
+
+struct symbol table[MAX];
+
+int count = 0;
+int currentAddress = 1000;
+char currentScope[20] = "Global";
+
+/* Find symbol (with scope) */
+int findSymbol(char *name, char *scope) {
+    for(int i = 0; i < count; i++) {
+        if(strcmp(table[i].name, name) == 0 &&
+           strcmp(table[i].scope, scope) == 0)
+            return i;
+    }
+    return -1;
+}
+
+/* Get size */
+int getSize(char *type) {
+    if(strcmp(type,"int")==0) return 4;
+    if(strcmp(type,"float")==0) return 4;
+    if(strcmp(type,"char")==0) return 1;
+    if(strcmp(type,"double")==0) return 8;
+    return 0;
+}
+
+/* Check keyword */
+int isKeyword(char *word) {
+    char *kw[] = {"int","float","char","double","for","while","if","else","return"};
+    for(int i=0;i<9;i++)
+        if(strcmp(word,kw[i])==0) return 1;
+    return 0;
+}
+
+/* Add symbol */
+void addSymbol(char *name, char *datatype) {
+    if(findSymbol(name, currentScope) != -1)
+        return;
+
+    strcpy(table[count].name, name);
+    strcpy(table[count].objType, "Variable");
+    strcpy(table[count].dataType, datatype);
+    table[count].size = getSize(datatype);
+    table[count].address = currentAddress;
+    strcpy(table[count].scope, currentScope);
+
+    currentAddress += table[count].size;
+    count++;
+}
+
+int main() {
+    char input[200], word[50], datatype[20] = "";
+    int i, j;
+    int inFor = 0;
+
+    printf("Enter C program (Type END to stop):\n");
+
+    while(1) {
+        fgets(input, sizeof(input), stdin);
+
+        if(strncmp(input,"END",3)==0)
+            break;
+
+        for(i=0; input[i] != '\0'; i++) {
+
+            /* Ignore character literals */
+            if(input[i] == '\'') {
+                i++;
+                while(input[i] != '\'' && input[i] != '\0') i++;
+                continue;
+            }
+
+            /* Ignore string literals */
+            if(input[i] == '\"') {
+                i++;
+                while(input[i] != '\"' && input[i] != '\0') i++;
+                continue;
+            }
+
+            /* Scope handling */
+            if(strstr(input,"for(") || strstr(input,"for ("))
+                inFor = 1;
+
+            if(input[i] == '{')
+                strcpy(currentScope,"Local");
+
+            if(input[i] == '}') {
+                strcpy(currentScope,"Global");
+                inFor = 0;
+            }
+
+            /* Extract word */
+            if(isalpha(input[i])) {
+                j=0;
+                word[j++] = input[i];
+
+                while(isalnum(input[i+1]))
+                    word[j++] = input[++i];
+
+                word[j]='\0';
+
+                /* Datatype detection */
+                if(strcmp(word,"int")==0 || strcmp(word,"float")==0 ||
+                   strcmp(word,"char")==0 || strcmp(word,"double")==0 ||
+                   (isupper(word[0]) && strlen(datatype)==0)) {
+
+                    strcpy(datatype, word);
+                }
+                else if(!isKeyword(word)) {
+
+                    /* Declaration */
+                    if(strlen(datatype) > 0) {
+                        if(inFor)
+                            strcpy(currentScope,"Local");
+
+                        addSymbol(word, datatype);
+                    }
+                }
+            }
+        }
+
+        strcpy(datatype,""); // reset datatype
+    }
+
+    printf("\n------ SYMBOL TABLE ------\n");
+    printf("Name\tObjType\t\tDataType\tSize\tAddress\tScope\n");
+    printf("-------------------------------------------------------------\n");
+
+    for(int i=0;i<count;i++) {
+        printf("%s\t%s\t%s\t\t%d\t%d\t%s\n",
+            table[i].name,
+            table[i].objType,
+            table[i].dataType,
+            table[i].size,
+            table[i].address,
+            table[i].scope);
+    }
+
+    return 0;
+}
+
+
+output:
+
+Enter C program (Type END to stop):
+int a=100;
+float b=101.10;
+for(int i=0;i<5;i++)
+{
+char a='s';
+String str='hello';
+}
+END
+
+------ SYMBOL TABLE ------
+Name    ObjType         DataType        Size    Address Scope
+-------------------------------------------------------------
+a       Variable        int             4       1000    Global
+b       Variable        float           4       1004    Global
+i       Variable        int             4       1008    Local
+a       Variable        char            1       1012    Local
+str     Variable        String          0       1013    Local
+
+Process returned 0 (0x0)   execution time : 187.007 s
+Press any key to continue.
+

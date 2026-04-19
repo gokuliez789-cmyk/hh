@@ -1,0 +1,149 @@
+#include <stdio.h>
+#include <string.h>
+#define MAX 20
+char stack[50], input[50];
+int top = -1;
+char productions[MAX][MAX];
+int n;
+
+/* Push */
+void push(char c) {
+    stack[++top] = c;
+    stack[top + 1] = '\0';
+}
+
+/* Pop */
+void pop(int k) {
+    if (top - k < 0) return;
+    top -= k;
+    stack[top + 1] = '\0';
+}
+
+/* Print row */
+void printRow(char stack[], char input[], char action[]) {
+    printf("| %-10s | %-10s | %-20s |\n", stack, input, action);
+}
+
+/* Precedence check */
+int shouldShift(char *rhs, char nextInput) {
+    if (strcmp(rhs, "E+T") == 0 && nextInput == '*')
+        return 1;
+    return 0;
+}
+
+/* Reduce */
+void reduce(char remainingInput[]) {
+    int i;
+    char next = remainingInput[0];
+
+    for (i = 0; i < n; i++) {
+        char lhs = productions[i][0];
+        char rhs[MAX];
+        int j = 0, k = 3;
+
+        while (productions[i][k] != '\0') {
+            rhs[j++] = productions[i][k++];
+        }
+        rhs[j] = '\0';
+
+        int len = strlen(rhs);
+
+        if (top + 1 >= len + 1) {
+            if (strncmp(&stack[top - len + 1], rhs, len) == 0) {
+
+                if (shouldShift(rhs, next))
+                    return;
+
+                char action[50];
+                sprintf(action, "Reduce %c->%s", lhs, rhs);
+                pop(len);
+                push(lhs);
+
+                printRow(stack, remainingInput, action);
+
+                i = -1;
+            }
+        }
+    }
+}
+
+int main() {
+    int i = 0;
+
+    printf("Enter number of productions: ");
+    scanf("%d", &n);
+
+    printf("Enter productions:\n");
+    for (i = 0; i < n; i++) {
+        scanf("%s", productions[i]);
+    }
+
+    printf("Enter input string: ");
+    scanf("%s", input);
+
+    /* FIX: Add $ only if not present */
+    int len = strlen(input);
+    if (input[len - 1] != '$') {
+        strcat(input, "$");
+    }
+    /* Initialize stack with $ */
+    push('$');
+
+    printf("\nInput String: %s\n\n", input);
+
+    printf("+------------+------------+----------------------+\n");
+    printf("| Stack      | Input      | Action               |\n");
+    printf("+------------+------------+----------------------+\n");
+    i = 0;
+    while (input[i] != '$') {
+        push(input[i]);
+
+        printRow(stack, input + i + 1, "Shift");
+
+        reduce(input + i + 1);
+        i++;
+    }
+    /* Final reductions */
+    reduce("");
+    printf("+------------+------------+----------------------+\n");
+
+    if (top == 1 && stack[0] == '$' && stack[1] == productions[0][0]) {
+        printf("\nResult: String Accepted\n");
+        printf("Input: %s\n", input);
+        printf("Final Stack: %s\n", stack);
+    } else {
+        printf("\nResult: String Rejected\n");
+    }
+    return 0;
+}
+
+
+output:
+
+Enter number of productions: 3
+Enter productions:
+E->E+T
+E->T
+T->a
+Enter input string: a+a
+
+Input String: a+a$
+
++------------+------------+----------------------+
+| Stack      | Input      | Action               |
++------------+------------+----------------------+
+| $a         | +a$        | Shift                |
+| $T         | +a$        | Reduce T->a          |
+| $E         | +a$        | Reduce E->T          |
+| $E+        | a$         | Shift                |
+| $E+a       | $          | Shift                |
+| $E+T       | $          | Reduce T->a          |
+| $E         | $          | Reduce E->E+T        |
++------------+------------+----------------------+
+
+Result: String Accepted
+Input: a+a$
+Final Stack: $E
+
+Process returned 0 (0x0)   execution time : 123.054 s
+Press any key to continue.
